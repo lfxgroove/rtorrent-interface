@@ -1,0 +1,7 @@
+[DEFAULT]
+# Set your path to the rtorrent SCGI local file here, for example:
+# rtorrent_scgi_path = /home/torrents/.rtorrent/socket
+# To enable this in your .rtorrent.rc file the following statement
+# can be used:
+# scgi_local=/path/to/where/you/want/the/socket/file
+rtorrent_scgi_path = 
