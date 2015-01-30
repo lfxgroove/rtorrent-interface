@@ -1,5 +1,7 @@
 # rtorrent-interface
 
+Compatible with python 3.
+
 To get started copy `cfg/rtorrent-interface.cfg.dist` to
 `cfg/rtorrent-interface.cfg` and configure it to your liking.
 Then run ./rpc.py and see all rtorrent methods that are
