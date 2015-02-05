@@ -4,12 +4,24 @@ import xmlrpc.client
 import configparser
 from unixstreamtransport import UnixStreamTransport
 
+class RTorrentXMLRPCClient(xmlrpc.client.ServerProxy):
+    def __init__(self, config_path):
+        self._config_path = config_path
+        config = configparser.ConfigParser()
+        config.read(self._config_path)
+        scgi_path = config['DEFAULT']['rtorrent_scgi_path']
+        transport = UnixStreamTransport(socketpath=scgi_path)
+        super(RTorrentXMLRPCClient, self).__init__('http://localhost/',
+                                                   transport=transport)
+
+
 def main():
-    config = configparser.ConfigParser()
-    config.read('./cfg/rtorrent-interface.cfg')
-    scgi_path = config['DEFAULT']['rtorrent_scgi_path']
-    unix_transport = UnixStreamTransport(socketpath=scgi_path)
-    rtorrent = xmlrpc.client.ServerProxy('http://localhost/', transport=unix_transport)
+    # config = configparser.ConfigParser()
+    # config.read('./cfg/rtorrent-interface.cfg')
+    # scgi_path = config['DEFAULT']['rtorrent_scgi_path']
+    # unix_transport = UnixStreamTransport(socketpath=scgi_path)
+    # rtorrent = xmlrpc.client.ServerProxy('http://localhost/', transport=unix_transport)
+    rtorrent = RTorrentXMLRPCClient('./cfg/rtorrent-interface.cfg')
     #for method in rtorrent.system.listMethods():
         #print('Method: ', method)
     doStuff(rtorrent)
@@ -20,14 +32,15 @@ def doStuff(rtorrent):
     downloads = rtorrent.download_list()
     for dl in downloads:
         print(rtorrent.d.get_directory(dl))
+        print(rtorrent.d.get_name(dl))
         files = []
-        multicall = xmlrpc.client.MultiCall(rtorrent.f)
-        multicall.get_path_components(dl)
-        multicall.get_size_bytes(dl)
-        multicall.get_size_chunks(dl)
-        multicall.get_completed_chunks(dl)
-        multicall.get_priority(dl)
-        print(rtorrent.f.get_path_components(dl, 0))
+        # multicall = xmlrpc.client.MultiCall(rtorrent.f)
+        # multicall.get_path_components(dl)
+        # multicall.get_size_bytes(dl)
+        # multicall.get_size_chunks(dl)
+        # multicall.get_completed_chunks(dl)
+        # multicall.get_priority(dl)
+        # print(rtorrent.f.get_path_components(dl, 0))
         #resp = multicall()
         # resp = rtorrent.f.multicall(
         #     id,
