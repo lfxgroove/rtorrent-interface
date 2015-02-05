@@ -24,11 +24,68 @@ available.
 Rtorrent works with hashes by default, which identify each
 download/torrent.
 
-| Call name                      | What it does                                                                                                |
-|--------------------------------|-------------------------------------------------------------------------------------------------------------|
-| download_list                  | Gives a list of all downloads in the main view. The returned list is a list of hashes.                      |
-| load_start, load_start_verbose | Loads the given path/magnet link and starts it. Always seems to return 0                                    |
-| d.pause                        | Pauses a download, needs the hash to pause as a parameter                                                   |
-| d.resume                       | Resumes a download, needs the hash to resume as a parameter. Good idea to check is_open before calling this |
-| load, load_verbose             | Loads the given path/magnet link. You need to call start for it to start downloading                        |
-| start                          | Start the given download, needs the hash as a parameter                                                     |
+<table>
+    <thead>
+        <th>Call name</th>
+        <th>Parameters</th>
+        <th>What it does</th>
+    </thead>
+    <tbody>
+        <tr>
+            <td>download_list</td>
+            <td>none</td>
+            <td>Returns an array/list of all hashes that are in the main view.</td>
+        </tr>
+        <tr>
+            <td>load_start</td>
+            <td>torrent_path/magnet_link</td>
+            <td>Loads the given path/magnet link and starts it. Always seems to return 0</td>
+        </tr>
+        <tr>
+            <td>load_start_verbose</td>
+            <td>See load_start</td>
+            <td>See load_start</td>
+        </tr>
+        <tr>
+            <td>d.pause</td>
+            <td>hash</td>
+            <td>Pauses the given download</td>
+        </tr>
+        <tr>
+            <td>d.resume</td>
+            <td>hash</td>
+            <td>Resumes a download, it's a good idea to call is_open before calling this.</td>
+        </tr>
+        <tr>
+            <td>load</td>
+            <td>torrent_path/magnet_link</td>
+            <td>Does the same as load_start but doesn't start downloading the torrent. TODO: return values?</td>
+        </tr>
+        <tr>
+            <td>load_verbose</td>
+            <td>See load</td>
+            <td>See load</td>
+        </tr>
+        <tr>
+            <td>start</td>
+            <td>hash</td>
+            <td>Start the given download</td>
+        </tr>
+        <tr>
+            <td>d.get_name</td>
+            <td>hash</td>
+            <td>Retrieve the name of the torrent with the given hash. Does not have anything to do with the
+            name of the individual files in this torrent.</td>
+        </tr>
+        <tr>
+            <td>d.get_completed_bytes</td>
+            <td>hash</td>
+            <td>Get the amount of bytes that are completed for the given torrent hash</td>
+        </tr>
+        <tr>
+            <td>d.get_size_bytes</td>
+            <td>hash</td>
+            <td>Get the total size in bytes of the given torrent hash</td>
+        </tr>    
+    </tbody>
+</table>
