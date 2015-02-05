@@ -3,12 +3,33 @@ from functools import wraps
 from rpc import RTorrentXMLRPCClient
 import os
 from flask import Flask, g, json, request
+from flask_jwt import JWT, jwt_required
 app = Flask(__name__)
 
 RTORRENT_XMLRPC_CONFIG_PATH = './cfg/rtorrent-interface.cfg'
+#Set this to something long and random, use for json web token
+SECRET_KEY = 'supersecretkey'
 app.config.from_object(__name__)
 
+jwt = JWT(app)
+
+class User:
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+@jwt.authentication_handler
+def authenticate(username, password):
+    if username == 'arne' and password == 'arne':
+        return User(id=1, name='arne')
+
+@jwt.user_handler
+def load_user(payload):
+    if payload['user_id'] == 1:
+        return User(id=1, name='arne')
+    
 @app.route('/')
+@jwt_required()
 def index():
     return app.send_static_file('index.html')
 
