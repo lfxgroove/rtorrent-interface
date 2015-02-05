@@ -349,7 +349,7 @@ lfx.Router = function() {
      * Checks if we have any saved state which denotes the page where we want
      * to being or if there's no such state goes to the index page.
      */
-    this.go = function() {
+    this.go = function(startPage) {
         // console.log(this.splitHash("/profile/me/"));
         // console.log(this.splitHash("/profile/me"));
         // console.log(this.splitHash("profile/me"));
@@ -359,7 +359,11 @@ lfx.Router = function() {
         if (savedUrl != null) {
             this.changePage(savedUrl);
         } else {
-            this.changePage("index");
+            if (startPage !== undefined) {
+                this.changePage(startPage);
+            } else {
+                this.changePage("index");
+            }
         }
     };
     

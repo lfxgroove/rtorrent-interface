@@ -29,7 +29,6 @@ def load_user(payload):
         return User(id=1, name='arne')
     
 @app.route('/')
-@jwt_required()
 def index():
     return app.send_static_file('index.html')
 
@@ -56,6 +55,7 @@ def give_xmlrpc_access(f):
 
 @app.route('/is_available/', methods=['GET'])
 @give_xmlrpc_access
+@jwt_required()
 def is_available():
     """
     Either returns an empty json object if the service is available, or a
@@ -65,6 +65,7 @@ def is_available():
 
 @app.route('/get_torrents/', methods=['GET'])
 @give_xmlrpc_access
+@jwt_required()
 def get_torrents():
     """
     Returns a list of all current torrents that available as json.
