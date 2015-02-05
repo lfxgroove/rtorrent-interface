@@ -6,7 +6,7 @@ function request(url, method, data) {
         client.onreadystatechange = function() {
             if (this.readyState === this.DONE) {
                 console.log(this.response);
-                if (parseInt(this.status / 100) === 2) {// === 200) {
+                if (parseInt(this.status / 100) === 2) {
                     resolve(JSON.parse(this.response));
                 } else {
                     reject(JSON.parse(this.response));
@@ -34,6 +34,8 @@ function request(url, method, data) {
 
 lfx.IndexController = function() {
     this.renderer = new lfx.Renderer(this);
+    this.torrentUpdateTimer = null;
+    this.TORRENT_UPDATE_INTERVAL = 1000;
     return this;
 };
 
@@ -46,14 +48,41 @@ lfx.IndexController.prototype = {
 
     //Starts updating and rerendering the progress of our torrents
     _startUpdating: function() {
-        
+        clearTimeout(this.torrentUpdateTimer);
+        setTimeout(this._updateTorrents.bind(this),
+                   this.TORRENT_UPDATE_INTERVAL);
+    },
+
+    _updateTorrents: function() {
+        var me = this;
+        var req = request('get_torrents/', 'GET');
+        req.then(function(data) {
+            $("#torrent-container").removeChildren();
+            var torrents = data.data;
+            torrents.forEach(function(torrent) {
+                me.renderer.renderAppend("view-torrent-info",
+                                         "torrent-container",
+                                         {torrent: torrent});
+            });
+            // setTimeout(me._updateTorrents.bind(me),
+            //            me.TORRENT_UPDATE_INTERVAL);
+        }, function(error) {
+            console.log("Error while updating");
+            console.log(error);
+        });
     },
     
     _setupCallbacks: function() {
         $("#add-magnet-link").bind("click", function(event) {
             event.preventDefault();
             var magnetLink = $("#magnet-link").value;
-            console.log("Ska lagga till: " + magnetLink);
+            var req = request('add_magnet/', 'POST', {link: magnetLink});
+            req.then(function(data) {
+                console.log("All went fine");
+            }, function(error) {
+                console.log("ERROR WHEN ADDING LINK");
+                console.log(error);
+            });
         });
     }
 };
