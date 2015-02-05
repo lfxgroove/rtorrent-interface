@@ -14,6 +14,12 @@ class RTorrentXMLRPCClient(xmlrpc.client.ServerProxy):
         super(RTorrentXMLRPCClient, self).__init__('http://localhost/',
                                                    transport=transport)
 
+    def is_connected(self):
+        try:
+            self.download_list()
+            return True
+        except OSError:
+            return False
 
 def main():
     # config = configparser.ConfigParser()

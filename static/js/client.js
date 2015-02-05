@@ -5,7 +5,7 @@ function request(url, method, data) {
         var client = new XMLHttpRequest();
         client.onreadystatechange = function() {
             if (this.readyState === this.DONE) {
-                console.log(this.response);
+                //console.log(this.response);
                 if (parseInt(this.status / 100) === 2) {
                     resolve(JSON.parse(this.response));
                 } else {
@@ -36,6 +36,9 @@ lfx.IndexController = function() {
     this.renderer = new lfx.Renderer(this);
     this.torrentUpdateTimer = null;
     this.TORRENT_UPDATE_INTERVAL = 1000;
+    this.upUpdateTimer = null;
+    this.TORRENT_UP_INTERVAL = 500;
+    this.isUp = false;
     return this;
 };
 
@@ -43,9 +46,28 @@ lfx.IndexController.prototype = {
     index: function() {
         this.renderer.render("view-main");
         this._setupCallbacks();
-        this._startUpdating();
+        this._startCheckingIfUp();
     },
 
+    _startCheckingIfUp: function() {
+        clearTimeout(this.upUpdateTimer);
+        setTimeout(this._isUp.bind(this), this.TORRENT_UP_INTERVAL);
+    },
+
+    _isUp: function() {
+        var me = this;
+        var req = request("is_available/", "GET")
+        req.then(function(data) {
+            me.isUp = true;
+            $("#rtorrent-status").innerHTML = "Up";
+            me._startUpdating();
+        }, function(error) {
+            me.isUp = false;
+            $("#rtorrent-status").innerHTML = "Down";
+            me._startCheckingIfUp();
+        });
+    },
+    
     //Starts updating and rerendering the progress of our torrents
     _startUpdating: function() {
         clearTimeout(this.torrentUpdateTimer);
@@ -64,11 +86,9 @@ lfx.IndexController.prototype = {
                                          "torrent-container",
                                          {torrent: torrent});
             });
-            // setTimeout(me._updateTorrents.bind(me),
-            //            me.TORRENT_UPDATE_INTERVAL);
+            me._startUpdating();
         }, function(error) {
-            console.log("Error while updating");
-            console.log(error);
+            me._startCheckingIfUp();
         });
     },
     

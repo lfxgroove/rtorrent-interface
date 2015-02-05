@@ -17,8 +17,10 @@ viewing the progress of downloads with a website. Uses flask and python
 and configure it to point to the correct rtorrent path. You will need
 to set the scgi_local parameter inside you .rtorrent.rc file, eg:
 
+
     #Other stuff...
     scgi_local = /path/to/where/you/want/your/socket.sock
+
 
 4. Start the webinterface by running
 

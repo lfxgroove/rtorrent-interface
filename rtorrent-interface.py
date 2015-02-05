@@ -28,8 +28,19 @@ def give_xmlrpc_access(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         g.rtorrent = RTorrentXMLRPCClient(app.config['RTORRENT_XMLRPC_CONFIG_PATH'])
+        if not g.rtorrent.is_connected():
+            return json.jsonify({'data': 'Backend not connected to rtorrent'}), 503
         return f(*args, **kwargs)
     return decorated_function
+
+@app.route('/is_available/', methods=['GET'])
+@give_xmlrpc_access
+def is_available():
+    """
+    Either returns an empty json object if the service is available, or a
+    message denoting why it's not available
+    """
+    return json.jsonify({})
 
 @app.route('/get_torrents/', methods=['GET'])
 @give_xmlrpc_access
