@@ -398,14 +398,31 @@ lfx.Renderer = function(ctx) {
         oldView.innerHTML = this.processData(newView, replacements);
     };
 
+    this.renderAppend = function(newPage, appendTo, replacements) {
+        var newView = lfx.Renderer.viewCache[newPage].cloneNode(true);
+        var oldView = document.getElementById(appendTo);
+        oldView.innerHTML += this.processData(newView, replacements);
+    };
+
     this.findRenderNodes = function(node, replacements) {
+        //Replace properties in attributes as well
+        //This isn't generic for the Node type, but it should
+        //work as we only process elements?
+        if (node.hasAttributes) {
+            for (var i = 0; i < node.attributes.length; ++i) {
+                var attrib = {attr: node.attributes[i].value};
+                this.replacePropertyAttrib(attrib, replacements, "");
+                node.attributes[i].value = attrib.attr
+            }
+        }
         if (node.nodeType == Node.TEXT_NODE) {
             var data = node.nodeValue.trim();
             if (data != "") {
                 var renderFoundAt = data.indexOf("{render:");
                 if (renderFoundAt != -1) {
                     var renderEndAt = data.indexOf("}", renderFoundAt);
-                    var renderTarget = data.substr(renderFoundAt + 8, renderEndAt - renderFoundAt - 8);
+                    var renderTarget = data.substr(renderFoundAt + 8,
+                                                   renderEndAt - renderFoundAt - 8);
                     node.nodeValue = node.nodeValue.replace("{render:" + renderTarget + "}", "");
                     if (renderTarget.startsWith("view")) {
                         this.renderSubView(renderTarget, node.parentNode);
@@ -448,6 +465,20 @@ lfx.Renderer = function(ctx) {
             } else {
                 //We need to recurse MORE!
                 this.replaceProperty(node, replacements[prop], prepend + prop + ".");
+            }
+        }
+    };
+
+    this.replacePropertyAttrib = function(attrib, replacements, prepend) {
+        for (var prop in replacements) {
+            if (typeof replacements[prop] != "object") {
+                attrib.attr = attrib.attr.replace("{" + prepend + prop + "}",
+                                                  replacements[prop]);
+            } else {
+                //We need to recurse MORE!
+                this.replacePropertyAttrib(attrib,
+                                           replacements[prop],
+                                           prepend + prop + ".");
             }
         }
     };
