@@ -1,23 +1,39 @@
 # rtorrent-interface
 
-Compatible with python 3.
+Small interface against rtorrent which supports adding magnet links and
+viewing the progress of downloads with a website. Uses flask and python
+3.
 
-To get started copy `cfg/rtorrent-interface.cfg.dist` to
-`cfg/rtorrent-interface.cfg` and configure it to your liking.
-Then run ./rpc.py and see all rtorrent methods that are
-available.
+#Setup
+1. Install a virtualenv for python3:
+
+    virtualenv /path/to/rtorrent-interface
+
+2. Install all packages that are required:
+
+    /path/to/rtorrent-interface/bin/pip install -r requirements.txt
+
+3. Copy `cfg/rtorrent-interface.cfg.dist` to `cfg/rtorrent-interface.cfg`
+and configure it to point to the correct rtorrent path. You will need
+to set the scgi_local parameter inside you .rtorrent.rc file, eg:
+
+    #Other stuff...
+    scgi_local = /path/to/where/you/want/your/socket.sock
+
+4. Start the webinterface by running
+
+    ./rtorrent-interface.py
 
 # Todo
 * Be notified in some way when a torrent is finished
 
 ## Via website
-* Support for adding a torrent
+* Some kind of authentication for clients
 * Support for showing progress of torrents
 * Support for showing list of torrents
 
-## Via website API
+# Done
 * Add a torrent
-
 
 # XMLRPC API calls
 
