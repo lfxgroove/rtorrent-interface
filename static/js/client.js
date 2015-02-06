@@ -29,6 +29,59 @@ function requestJson(url, method, data) {
     });
 }
 
+/**
+ * The options is a object which can contain the following keys:
+ * * method - which HTTP method verb to use
+ * * data - an object which will be converted to json before sending
+ * * headers - an object which contains the name of the headers
+ * you would like to send and their values. Eg:
+ * <code>
+ * makeRequest('get_data', {
+ *     method: 'POST',
+ *     data: {'data1': 'some data', 'another json value': 'val'},
+ *     headers: {'Content-Type': 'application/json',
+ *               'Authorization': 'None'}
+ * });
+ * </code>
+ * This would make a request to get_data as POST, send along the
+ * json representation of `data` and add the given headers along
+ * with their values.
+ */  
+function makeRequest(url, options) {
+    if (options === undefined) {
+        options = {};
+    }
+    return new lfx.Promise(function(resolve, reject) {
+        var client = new XMLHttpRequest();
+        client.onreadystatechange = function() {
+            if (this.readyState === this.DONE) {
+                if (parseInt(this.status / 100) === 2) {
+                    resolve(JSON.parse(this.response));
+                } else {
+                    reject(JSON.parse(this.response));
+                }
+            }
+        };
+
+        var method = options.method || "GET";
+        client.open(method, url, true);
+        var data = null;
+        if (options.data) {
+            data = JSON.stringify(data);
+        }
+        if (options.headers) {
+            Object.keys(options.headers).forEach(function(value) {
+                client.setRequestHeader(value, options.headers[value]);
+            });
+        }
+        if (data != null) {
+            client.send(data);
+        } else {
+            client.send();
+        }
+    });
+}
+
 function request(url, method, data) {
     return new lfx.Promise(function(resolve, reject) {
         var client = new XMLHttpRequest();
@@ -63,16 +116,42 @@ function request(url, method, data) {
 
 lfx.ServerProxy = function() {
     this.storageTokenName = "lfxRTorrentToken";
+    this.token = null;
+    var tmp = localStorage.getItem(this.storageTokenName);
+    if (tmp !== null && tmp !== undefined) {
+        this.token = tmp;
+    }
     return this;
 };
 
 lfx.ServerProxy.prototype = {
+    _handleExpiredToken: function(error) {
+        if (error.description == "Token is expired") {
+            this._setToken(null);
+            console.log("Your token has expired and you need to login again");
+            router.changePage("login");
+        }
+        return error;
+    },
+
+    _setToken: function(newToken) {
+        this.token = newToken;
+        localStorage.setItem(this.storageTokenName, newToken);
+    },
+    
     isLoggedIn: function() {
-        return false;
+        return this.token != null;
     },
 
     isAvailable: function() {
-        
+        var req = makeRequest("is_available/", {
+            headers: {
+                "Authorization": "Bearer " + this.token
+            }
+        });
+        req.then(function(data) { return data; },
+                 this._handleExpiredToken.bind(this));
+        return req;
     },
 
     getTorrents: function() {
@@ -89,11 +168,12 @@ lfx.ServerProxy.prototype = {
                           {username: username,
                            password: password});
         req.then(function(data) {
+            return data;
+        }, this._handleExpiredToken.bind(this));
+        req.then(function(data) {
             localStorage.setItem(me.storageTokenName, data.token);
-            console.log(data);
             return data;
         }, function(error) {
-            console.log(error);
             return error;
         });
         return req;
@@ -111,16 +191,21 @@ lfx.LoginController.prototype = {
         this._setupCallbacks();
     },
 
+    loginNavFrom: function() {
+        console.log("Navigating away from login");
+    },
+
     _setupCallbacks: function() {
         $("#login").bind("click", function(event) {
             event.preventDefault();
             var req = serverProxy.logIn($("#username").value,
                                         $("#password").value);
             req.then(function(data) {
-                console.log("Logged in and got response: ");
-                console.log(data);
+                router.changePage("index");
             }, function(error) {
-                $("#login-errors").innerHTML = "Error when logging in";
+                $("#login-errors").innerHTML =
+                    "<b>Error when logging in:</b> " + error.description;
+                $("#login-errors").removeClass("hidden");
             });
         });
     }
@@ -147,6 +232,11 @@ lfx.IndexController.prototype = {
         this._startCheckingIfUp();
     },
 
+    //Called when we navigate away from index
+    indexNavFrom: function() {
+        console.log("Navigating away!");
+    },
+
     _startCheckingIfUp: function() {
         clearTimeout(this.upUpdateTimer);
         // setTimeout(this._isUp.bind(this), this.TORRENT_UP_INTERVAL);
@@ -154,7 +244,8 @@ lfx.IndexController.prototype = {
 
     _isUp: function() {
         var me = this;
-        var req = request("is_available/", "GET")
+        // var req = request("is_available/", "GET")
+        var req = serverProxy.isAvailable();
         req.then(function(data) {
             me.isUp = true;
             $("#rtorrent-status").innerHTML = "Up";

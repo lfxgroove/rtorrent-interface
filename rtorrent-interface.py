@@ -9,6 +9,11 @@ app = Flask(__name__)
 RTORRENT_XMLRPC_CONFIG_PATH = './cfg/rtorrent-interface.cfg'
 #Set this to something long and random, use for json web token
 SECRET_KEY = 'supersecretkey'
+#Tokens expire in an hour
+JWT_EXPIRATION_DELTA = 3600
+#Configure username and password with which you login
+USERNAME = 'arne'
+PASSWORD = 'arne'
 app.config.from_object(__name__)
 
 jwt = JWT(app)
@@ -20,13 +25,14 @@ class User:
 
 @jwt.authentication_handler
 def authenticate(username, password):
-    if username == 'arne' and password == 'arne':
+    if username == app.config['USERNAME'] and \
+       password == app.config['PASSWORD']:
         return User(id=1, name='arne')
 
 @jwt.user_handler
 def load_user(payload):
     if payload['user_id'] == 1:
-        return User(id=1, name='arne')
+        return User(id=1, name=app.config['USERNAME'])
     
 @app.route('/')
 def index():

@@ -13,6 +13,12 @@ lfx.Extensions = {
         this.style.display = "block";
     },
 
+    removeClass: function(cls) {
+        var classes = this.attr("class");
+        classes = classes.replace(cls, "");
+        this.attr("class", classes);
+    },
+    
     attr: function(attribute) {
         if (arguments.length == 2) {
             return this.setAttribute(arguments[0], arguments[1]);
@@ -239,20 +245,64 @@ lfx.Promise.prototype = {
     }
 };
 
+/**
+ * Example usage:
+ * <code>
+ * function myObj() {
+ *    this.renderer = new lfx.Renderer(this);
+ *    return this;
+ * }
+ * myObj.prototype = {
+ *     func: function() {
+ *         this.renderer.render("view-test");
+ *     },
+ *
+ *     funcNavFrom: function() {
+ *         console.log("Navigation away from index now");
+ *     }
+ * };
+ * var router = new Router();
+ * router.addRoute("index", "func", new myObj());
+ * </code>
+ * This would register a route which responds to going to the hash index, eg:
+ * localhost/#index, when this happens the function func() in myObj would be
+ * called. When the user navigates to another page funcNavFrom() is called
+ * first to ensure that you've had a chance to tear down timers etc.
+ * You can also register different urls etc to the same controller. To do this
+ * just pass the same instance of the object to addRoute() but change the
+ * url and name.
+ */
 lfx.Router = function() {
     var me = this;
+    //List of routes, a route contains a controller which is the object
+    //that holds functions and a route (route.route) which is the function
+    //we should call on the object for the route that it is associated with
     this.routes = [];
     this.notFound = {};
     this.savedUrlKey = "lastSavedUrl";
+    //The current controller/route we're viewing
+    this.currentRoute = null;
 
     window.addEventListener("hashchange", function(hashEvent) {
         me.handleHashChange(hashEvent);
     });
 
+    /**
+     * This is the controller and name that will be called when we can't find
+     * a route that matches any other route.
+     */
     this.setNotFoundRoute = function(name, controller) {
         this.notFound = {"name": name, "controller": controller};
     };
-    
+
+    /**
+     * Add a new route.
+     * \param url The url that you would like to trigger this route being run
+     * \param name The name of the function that you would like to be called
+     * in your controller object when this route is hit
+     * \param controller instance of the controller which holds the given
+     * function which you declared in the parameter name.
+     */
     this.addRoute = function(url, name, controller) {
         this.routes.push({
             "url": url,
@@ -322,14 +372,29 @@ lfx.Router = function() {
         this.hashChanged(window.location.hash);
     };
 
+    /**
+     * Calls the current routes NavFrom method, which makes sure that
+     * it gets a chance to remove timers etc before changing page.
+     */
+    this.navigateFromEvent = function() {
+        var route = this.currentRoute;
+        if (route != null &&
+            route.name + "NavFrom" in route.controller) {
+            route.controller[route.name + "NavFrom"].apply(route.controller);
+        }
+    };
+    
     this.hashChanged = function(newHash) {
         var newUrl = this.splitHash(window.location.hash.substr(1));
         var route = this.findMatchingRoute(newUrl);
+        this.navigateFromEvent();
         if (route == null) {
+            this.currentRoute = this.notFound;
             var notFound = this.notFound;
             notFound.controller[notFound.name].call(notFound.controller);
             return;
         }
+        this.currentRoute = route;
         var args = this.extractArgsFromHash(route, newUrl);
         window.localStorage.setItem(this.savedUrlKey, window.location.hash.substr(1));
         route.controller[route.name].apply(route.controller, args);
