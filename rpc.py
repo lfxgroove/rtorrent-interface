@@ -2,6 +2,7 @@
 
 import xmlrpc.client
 import configparser
+import os
 from unixstreamtransport import UnixStreamTransport
 
 class RTorrentXMLRPCClient(xmlrpc.client.ServerProxy):
@@ -13,6 +14,11 @@ class RTorrentXMLRPCClient(xmlrpc.client.ServerProxy):
         transport = UnixStreamTransport(socketpath=scgi_path)
         super(RTorrentXMLRPCClient, self).__init__('http://localhost/',
                                                    transport=transport)
+        #print(os.getcwd() + '/posthook.py')
+        self.system.method.set_key('event.download.finished',
+                                   'post_hook_rtorrent_interface',
+                                   'execute=' + os.getcwd() + '/posthook.py,' +
+                                   '$d.get_base_path=,$d.get_name=')
 
     def is_connected(self):
         try:
