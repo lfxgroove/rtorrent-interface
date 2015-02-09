@@ -100,8 +100,20 @@ def add_magnet():
     Required parameters:
     * magnet link
     """
-    g.rtorrent.load_start(request.values['link'])
-    return json.jsonify({'success': True})
+    if 'link' not in request.values:
+        return json.jsonify({
+            'success': False,
+            'message': 'You need to send along a link to add'
+        }), 400
+    link = request.values['link']
+    #Simple validation.
+    if not link.startswith('magnet:?') or 'xt=' not in link:
+        return json.jsonify({
+            'success': False,
+            'message': 'You can\'t add a non-magnet URI'
+        }), 400
+    g.rtorrent.load_start(link)
+    return json.jsonify({'success': True}), 201
 
 if __name__ == '__main__':
     app.run(debug=True)

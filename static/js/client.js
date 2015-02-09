@@ -1,39 +1,13 @@
 "use strict";
 
-function requestJson(url, method, data) {
-    return new lfx.Promise(function(resolve, reject) {
-        var client = new XMLHttpRequest();
-        client.onreadystatechange = function() {
-            if (this.readyState === this.DONE) {
-                //console.log(this.response);
-                if (parseInt(this.status / 100) === 2) {
-                    resolve(JSON.parse(this.response));
-                } else {
-                    reject(JSON.parse(this.response));
-                }
-            }
-        };
-        client.onerror = function() {
-            console.log("GOT ERROR");
-        };
-        client.open(method, url, true);
-        // client.responseType = "json";
-        // client.setRequestHeader("Accept", "application/json");
-        client.setRequestHeader("Content-Type", "application/json");
-        //Turn the data into a FormData thing instead:
-        if (data != undefined) {
-            client.send(JSON.stringify(data));
-        } else {
-            client.send();
-        }
-    });
-}
-
 /**
  * The options is a object which can contain the following keys:
  * * method - which HTTP method verb to use
  * * data - an object which will be converted to json before sending
  * * headers - an object which contains the name of the headers
+ * * type - How you would like to send your data, can be 'form' or 'json'
+ *          they will both add headers which you may overwrite with the headers
+ *          option. Defaults to json
  * you would like to send and their values. Eg:
  * <code>
  * makeRequest('get_data', {
@@ -67,7 +41,16 @@ function makeRequest(url, options) {
         client.open(method, url, true);
         var data = null;
         if (options.data) {
-            data = JSON.stringify(data);
+            if (!options.type || options.type == "json") {
+                data = JSON.stringify(options.data);
+            } else if(options.type == "post") {
+                data = new FormData();
+                for (var key in options.data) {
+                    data.append(key, options.data[key]);
+                }
+            } else {
+                throw new Error("Unsupported type option for makeRequest");
+            }
         }
         if (options.headers) {
             Object.keys(options.headers).forEach(function(value) {
@@ -76,38 +59,6 @@ function makeRequest(url, options) {
         }
         if (data != null) {
             client.send(data);
-        } else {
-            client.send();
-        }
-    });
-}
-
-function request(url, method, data) {
-    return new lfx.Promise(function(resolve, reject) {
-        var client = new XMLHttpRequest();
-        client.onreadystatechange = function() {
-            if (this.readyState === this.DONE) {
-                //console.log(this.response);
-                if (parseInt(this.status / 100) === 2) {
-                    resolve(JSON.parse(this.response));
-                } else {
-                    reject(JSON.parse(this.response));
-                }
-            }
-        };
-        client.onerror = function() {
-            console.log("GOT ERROR");
-        };
-        client.open(method, url, true);
-        // client.responseType = "json";
-        // client.setRequestHeader("Accept", "application/json");
-        //Turn the data into a FormData thing instead:
-        if (data != undefined) {
-            var formData = new FormData();
-            for (var key in data) {
-                formData.append(key, data[key]);
-            }
-            client.send(formData);
         } else {
             client.send();
         }
@@ -130,6 +81,8 @@ lfx.ServerProxy.prototype = {
             this._setToken(null);
             console.log("Your token has expired and you need to login again");
             router.changePage("login");
+            $("#login-errors").innerHTML = "Your token has expired and you " +
+                "to login again";
         }
         return error;
     },
@@ -155,18 +108,42 @@ lfx.ServerProxy.prototype = {
     },
 
     getTorrents: function() {
-        
+        var req = makeRequest("get_torrents/", {
+            headers: {
+                "Authorization": "Bearer " + this.token
+            }
+        });
+        req.then(function(data) { return data; },
+                 this._handleExpiredToken.bind(this));
+        return req;
     },
 
-    addMagnet: function() {
-        
+    addMagnet: function(magnetLink) {
+        var req = makeRequest("add_magnet/", {
+            headers: {
+                "Authorization": "Bearer " + this.token
+            },
+            method: "POST",
+            type: "post",
+            data: {
+                "link": magnetLink
+            }
+        });
+        req.then(function(data) { return data; },
+                 this._handleExpiredToken.bind(this));
+        return req;
     },
     
     logIn: function(username, password) {
         var me = this;
-        var req = requestJson("auth", "POST",
-                          {username: username,
-                           password: password});
+        var req = makeRequest("auth", {
+            method: "POST",
+            type: "json",
+            data: {
+                "username": username,
+                "password": password
+            },
+        });
         req.then(function(data) {
             return data;
         }, this._handleExpiredToken.bind(this));
@@ -213,10 +190,14 @@ lfx.LoginController.prototype = {
 
 lfx.IndexController = function() {
     this.renderer = new lfx.Renderer(this);
+    /**
+     * Whether or not we should keep updating status etc via AJAX.
+     */
+    this.updatesEnabled = false;
     this.torrentUpdateTimer = null;
-    this.TORRENT_UPDATE_INTERVAL = 1000;
+    this.TORRENT_UPDATE_INTERVAL = 10000;
     this.upUpdateTimer = null;
-    this.TORRENT_UP_INTERVAL = 500;
+    this.TORRENT_UP_INTERVAL = 5000;
     this.isUp = false;
     return this;
 };
@@ -228,29 +209,47 @@ lfx.IndexController.prototype = {
             return;
         }
         this.renderer.render("view-main");
+        this._enableUpdates();
         this._setupCallbacks();
         this._startCheckingIfUp();
     },
 
     //Called when we navigate away from index
     indexNavFrom: function() {
+        this._disableUpdates();
         console.log("Navigating away!");
     },
 
+    _enableUpdates: function() {
+        this.updatesEnabled = true;
+    },
+
+    _disableUpdates: function() {
+        this.updatesEnabled = false;
+    },
+    
     _startCheckingIfUp: function() {
         clearTimeout(this.upUpdateTimer);
-        // setTimeout(this._isUp.bind(this), this.TORRENT_UP_INTERVAL);
+        if (this.updatesEnabled) {
+            setTimeout(this._isUp.bind(this),
+                       this.TORRENT_UP_INTERVAL);
+        }
     },
 
     _isUp: function() {
         var me = this;
-        // var req = request("is_available/", "GET")
         var req = serverProxy.isAvailable();
         req.then(function(data) {
+            if (!me.updatesEnabled) {
+                return;
+            }
             me.isUp = true;
             $("#rtorrent-status").innerHTML = "Up";
             me._startUpdating();
         }, function(error) {
+            if (!me.updatesEnabled) {
+                return;
+            }
             me.isUp = false;
             $("#rtorrent-status").innerHTML = "Down";
             me._startCheckingIfUp();
@@ -260,14 +259,20 @@ lfx.IndexController.prototype = {
     //Starts updating and rerendering the progress of our torrents
     _startUpdating: function() {
         clearTimeout(this.torrentUpdateTimer);
-        // setTimeout(this._updateTorrents.bind(this),
-        //            this.TORRENT_UPDATE_INTERVAL);
+        if (this.updatesEnabled) {
+            setTimeout(this._updateTorrents.bind(this),
+                       this.TORRENT_UPDATE_INTERVAL);
+        }
     },
 
+    //Does the actual update of which torrents have come how far.
     _updateTorrents: function() {
         var me = this;
-        var req = request('get_torrents/', 'GET');
+        var req = serverProxy.getTorrents();
         req.then(function(data) {
+            if (!me.updatesEnabled) {
+                return;
+            }
             $("#torrent-container").removeChildren();
             var torrents = data.data;
             torrents.forEach(function(torrent) {
@@ -285,10 +290,14 @@ lfx.IndexController.prototype = {
         $("#add-magnet-link").bind("click", function(event) {
             event.preventDefault();
             var magnetLink = $("#magnet-link").value;
-            var req = request('add_magnet/', 'POST', {link: magnetLink});
+            var req = serverProxy.addMagnet(magnetLink);
             req.then(function(data) {
+                $("#add-errors").addClass("hidden");
+                console.log(data);
                 console.log("All went fine");
             }, function(error) {
+                $("#add-errors").removeClass("hidden");
+                $("#add-errors").innerHTML = error.message;
                 console.log("ERROR WHEN ADDING LINK");
                 console.log(error);
             });

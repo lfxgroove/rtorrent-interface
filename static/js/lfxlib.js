@@ -13,6 +13,12 @@ lfx.Extensions = {
         this.style.display = "block";
     },
 
+    addClass: function(cls) {
+        var classes = this.attr("class");
+        classes += " " + cls;
+        this.attr("class", classes);
+    },
+    
     removeClass: function(cls) {
         var classes = this.attr("class");
         classes = classes.replace(cls, "");
