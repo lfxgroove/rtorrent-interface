@@ -27,11 +27,12 @@ to set the scgi_local parameter inside you .rtorrent.rc file, eg:
 * Be notified in some way when a torrent is finished
 
 ## Via website
+* Some kind of refresh token as described in http://stackoverflow.com/questions/26739167/jwt-json-web-token-automatic-prolongation-of-expiration
+
+# Done
 * Some kind of authentication for clients
 * Support for showing progress of torrents
 * Support for showing list of torrents
-
-# Done
 * Add a torrent
 
 # XMLRPC API calls
