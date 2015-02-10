@@ -2,8 +2,39 @@
   "name": "rtorrent-interface-firefox",
   "title": "rtorrent-interface-firefox",
   "id": "jid1-rADlo2mobpcWcw",
-  "description": "a basic add-on",
-  "author": "",
-  "license": "MPL 2.0",
-  "version": "0.1"
+  "description": "RTorrentInterface magnet addon",
+  "author": "lfxgroove",
+  "license": "MIT",
+  "version": "0.1",
+
+  "preferences": [
+    {
+      "name": "host",
+      "title": "RI website host",
+      "description": "Where the RI website is located",
+      "type": "string",
+      "value": "http://localhost:5000/"
+    },
+    {
+      "name": "username",
+      "title": "Username for the website",
+      "description": "What username you use when logging on to the RI website",
+      "type": "string",
+      "value": "arne"
+    },
+    {
+      "name": "password",
+      "title": "Password for the website",
+      "description": "What password you use when logging on to the RI website",
+      "type": "string",
+      "value": "arne"
+    },
+    {
+      "name": "savePassword",
+      "title": "Save currently entered password",
+      "description": "Save your password by clicking this button",
+      "type": "control",
+      "label": "Save password"
+    }
+  ]
 }
