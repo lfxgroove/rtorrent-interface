@@ -60,7 +60,94 @@ function ServerProxy() {
   return this;
 }
 
+
 var netXml = require('sdk/net/xhr');
+
+function makeRequestWithLogin(options) {
+  if (options === undefined) {
+    throw new Error("You need to support an options object");
+  }
+  return new Promise(function(resolve, reject) {
+    var client = new netXml.XMLHttpRequest();
+    client.onreadystatechange = function() {
+      if (this.readyState === this.DONE) {
+        if (parseInt(this.status / 100) === 2) {
+          // options.onSuccess(JSON.parse(this.response));
+          resolve(JSON.parse(this.response));
+        } else {
+          if (options.loginAndRetry) {
+            options.loginAndRetry = false;
+            passwords.search({
+              onComplete: function(credentials) {
+                var credential = credentials[0];
+                console.log('trying to relog: ' + credential.username +
+                            ' pass: ' + credential.password);
+                            
+                var req = serverProxy.login(credential.username,
+                                            credential.password);
+                req.then(function(data) {
+                  console.log('Done with login request: ');
+                  console.log(data);
+                  // console.log(options);
+                  options.headers = {
+                    'Authorization': 'Bearer ' + serverProxy.token
+                  };
+                  makeRequest(options).then(function(data) {
+                    console.log('done with retried request');
+                    resolve(data);
+                  }, function(err) {
+                    console.log('errored with retried request');
+                    reject(err);
+                  });
+                }, function(err) {
+                  console.log('Error while trying to relog');
+                  console.log(err);
+                });
+              }
+            });
+          } else {
+            reject(this.response);
+          }
+          // options.onError(this.response);
+          // reject(this.response);
+        }
+      }
+    };
+
+    if (!options.url) {
+      throw new Error('You need to supply an url you want to get');
+    }
+    
+    var method = options.method || 'GET';
+    client.open(method, options.url, true);
+    var data = null;
+    if (options.data) {
+      if (!options.type || options.type == 'json') {
+        data = JSON.stringify(options.data);
+      } else if(options.type == 'post') {
+        //equivalent to new FormData()
+        data = Cc['@mozilla.org/files/formdata;1']
+          .createInstance(Ci.nsIDOMFormData);
+        for (var key in options.data) {
+          data.append(key, options.data[key]);
+        }
+      } else {
+        throw new Error('Unsupported type option for makeRequest');
+      }
+    }
+    if (options.headers) {
+      Object.keys(options.headers).forEach(function(value) {
+        client.setRequestHeader(value, options.headers[value]);
+      });
+    }
+    if (data != null) {
+      client.send(data);
+    } else {
+      client.send();
+    }
+  });
+}
+
 function makeRequest(options) {
   if (options === undefined) {
     throw new Error("You need to support an options object");
@@ -70,8 +157,10 @@ function makeRequest(options) {
     client.onreadystatechange = function() {
       if (this.readyState === this.DONE) {
         if (parseInt(this.status / 100) === 2) {
+          // options.onSuccess(JSON.parse(this.response));
           resolve(JSON.parse(this.response));
         } else {
+          // options.onError(this.response);
           reject(this.response);
         }
       }
@@ -113,15 +202,16 @@ function makeRequest(options) {
 
 ServerProxy.prototype = {
   _setToken: function(token) {
-    // this.token = token;
+    this.token = token;
     // ss.storage.token = token;
-    this.token = null;
-    ss.storage.token = null;
+    // this.token = null;
+    // ss.storage.token = null;
   },
   
   login: function(username, password) {
     var me = this;
-    var req = makeRequest(makeServerUrl('auth'), {
+    var req = makeRequest({
+      url: makeServerUrl('auth'),
       method: 'POST',
       type: 'json',
       data: {
@@ -139,7 +229,9 @@ ServerProxy.prototype = {
   },
   
   addMagnet: function(magnetLink) {
-    var req = makeRequest(makeServerUrl('add_magnet/'), {
+    var req = makeRequestWithLogin({
+      url: makeServerUrl('add_magnet/'),
+      loginAndRetry: true,
       headers: {
         'Authorization': 'Bearer ' + this.token
       },

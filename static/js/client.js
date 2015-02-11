@@ -82,7 +82,7 @@ lfx.ServerProxy.prototype = {
             console.log("Your token has expired and you need to login again");
             router.changePage("login");
             $("#login-errors").innerHTML = "Your token has expired and you " +
-                "to login again";
+                "need to login again";
         }
         return error;
     },
