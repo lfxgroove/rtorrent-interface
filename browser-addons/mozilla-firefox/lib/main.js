@@ -8,29 +8,31 @@ var ss = require('sdk/simple-storage');
 const {Cc, Ci} = require('chrome');
 
 var simplePrefs = require('sdk/simple-prefs');
+var prefs = simplePrefs.prefs;
 var passwords = require('sdk/passwords');
+var notifications = require('sdk/notifications');
 
 var savePasswordCallback = function() {
-  
+  passwords.store({
+    realm: 'User authentication',
+    username: prefs['username'],
+    password: prefs['password'],
+    onComplete: function() {
+      prefs['password'] = '';
+      notifications.notify({
+        title: 'Data saved',
+        text: 'Password and username has been saved.'
+      });
+    }
+  });
 };
 
 simplePrefs.on('savePassword', function(prefName) {
   passwords.search({
     onComplete: function(credentials) {
       if (credentials.length == 0) {
-        console.log('Nothing here!');
-        passwords.store({
-          realm: 'User authentication',
-          username: simplePrefs.prefs['username'],
-          password: simplePrefs.prefs['password'],
-          onComplete: function() {
-            console.log('Har sparat anvandare nu!');
-          }
-        });
+        savePasswordCallback();
       } else {
-        console.log('Hittade en anvadare: ');
-        console.log(credentials[0].username);
-        console.log(credentials[0].password);
         passwords.remove({
           realm: 'User authentication',
           username: credentials[0].username,
@@ -40,46 +42,18 @@ simplePrefs.on('savePassword', function(prefName) {
       }
     }
   });
-  //This is horrible
-  // require('sdk/passwords').search({
-  //   onComplete: function onComplete(credentials) {
-  //     console.log(credentials);
-  //     if (credentials.length == 0) {
-  //       console.log('No credentials, need to save them');
-  //       require('sdk/passwords').store({
-  //         realm: 'User authentication',
-  //         username: simplePrefs.prefs['username'],
-  //         password: simplePrefs.prefs['password'],
-  //         onComplete: function(credential) {
-  //           console.log('Changed as well');
-  //           simplePrefs.prefs['password'] = '';
-  //         }
-  //       });
-  //     } else {
-  //       credentials.forEach(function(credential) {
-  //         require('sdk/passwords').remove({
-  //           username: credential.username,
-  //           onComplete: function(credential) {
-  //             require('sdk/passwords').store({
-  //               realm: 'User authentication',
-  //               username: simplePrefs.prefs['username'],
-  //               password: simplePrefs.prefs['password'],
-  //               onComplete: function(credential) {
-  //                 console.log('It changed!');
-  //                 console.log(simplePrefs.prefs['password']);
-  //                 simplePrefs.prefs['password'] = '';
-  //               }
-  //             });
-  //           }
-  //         });
-  //       });
-  //     }
-  //   }
-  // });
 });
 
+var makeServerUrl = function(path) {
+  var host = prefs['host'];
+  if (host.charAt(host.length - 1) != '/') {
+    host += '/';
+  }
+  return host + path;
+};
+
 function ServerProxy() {
-  this.token = ss.storage.token;
+  this.token = null;//ss.storage.token;
   if (this.token === undefined) {
     ss.storage.token = this.token = null;
   }
@@ -87,9 +61,9 @@ function ServerProxy() {
 }
 
 var netXml = require('sdk/net/xhr');
-function makeRequest(url, options) {
+function makeRequest(options) {
   if (options === undefined) {
-    options = {};
+    throw new Error("You need to support an options object");
   }
   return new Promise(function(resolve, reject) {
     var client = new netXml.XMLHttpRequest();
@@ -103,8 +77,12 @@ function makeRequest(url, options) {
       }
     };
 
+    if (!options.url) {
+      throw new Error('You need to supply an url you want to get');
+    }
+    
     var method = options.method || 'GET';
-    client.open(method, url, true);
+    client.open(method, options.url, true);
     var data = null;
     if (options.data) {
       if (!options.type || options.type == 'json') {
@@ -135,13 +113,15 @@ function makeRequest(url, options) {
 
 ServerProxy.prototype = {
   _setToken: function(token) {
-    this.token = token;
-    ss.storage.token = token;
+    // this.token = token;
+    // ss.storage.token = token;
+    this.token = null;
+    ss.storage.token = null;
   },
   
   login: function(username, password) {
     var me = this;
-    var req = makeRequest('http://localhost:5000/auth', {
+    var req = makeRequest(makeServerUrl('auth'), {
       method: 'POST',
       type: 'json',
       data: {
@@ -159,7 +139,7 @@ ServerProxy.prototype = {
   },
   
   addMagnet: function(magnetLink) {
-    var req = makeRequest('http://localhost:5000/add_magnet/', {
+    var req = makeRequest(makeServerUrl('add_magnet/'), {
       headers: {
         'Authorization': 'Bearer ' + this.token
       },
@@ -212,12 +192,26 @@ var button = buttons.ActionButton({
 });
 
 function handleClick(state) {
-  var req = serverProxy.login('arne', 'arne');
-  req.then(function(data) {
-    console.log('Gick bra');
-    console.log(data);
-  }, function(err) {
-    console.log('ERRORORORR:');
-    console.log(err);
+  passwords.search({
+    onComplete: function(credentials) {
+      if (credentials.length == 0) {
+        notifications.notify({
+          title: 'Error',
+          text: 'You need to setup a username and password ' +
+            'before using this addon, go to the add-on manager ' +
+            'and press settings for ' + require('sdk/self').name
+        });
+        return;
+      }
+      var credential = credentials[0];
+      var req = serverProxy.login(credential.username, credential.password);
+      req.then(function(data) {
+        console.log('Gick bra');
+        console.log(data);
+      }, function(err) {
+        console.log('ERRORORORR:');
+        console.log(err);
+      });
+    }
   });
 }

@@ -94,6 +94,7 @@ def get_torrents():
 
 @app.route('/add_magnet/', methods=['POST'])
 @give_xmlrpc_access
+@jwt_required()
 def add_magnet():
     """
     Adds a magnet link to the downloads list and starts it.
