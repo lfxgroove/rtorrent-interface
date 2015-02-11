@@ -8,8 +8,38 @@ var ss = require('sdk/simple-storage');
 const {Cc, Ci} = require('chrome');
 
 var simplePrefs = require('sdk/simple-prefs');
+var passwords = require('sdk/passwords');
+
+var savePasswordCallback = function() {
+  
+};
 
 simplePrefs.on('savePassword', function(prefName) {
+  passwords.search({
+    onComplete: function(credentials) {
+      if (credentials.length == 0) {
+        console.log('Nothing here!');
+        passwords.store({
+          realm: 'User authentication',
+          username: simplePrefs.prefs['username'],
+          password: simplePrefs.prefs['password'],
+          onComplete: function() {
+            console.log('Har sparat anvandare nu!');
+          }
+        });
+      } else {
+        console.log('Hittade en anvadare: ');
+        console.log(credentials[0].username);
+        console.log(credentials[0].password);
+        passwords.remove({
+          realm: 'User authentication',
+          username: credentials[0].username,
+          password: credentials[0].password,
+          onComplete: savePasswordCallback
+        });
+      }
+    }
+  });
   //This is horrible
   // require('sdk/passwords').search({
   //   onComplete: function onComplete(credentials) {
