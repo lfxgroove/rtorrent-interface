@@ -25,6 +25,7 @@ to set the scgi_local parameter inside you .rtorrent.rc file, eg:
 
 # Todo
 * Be notified in some way when a torrent is finished
+* Make sure that all necessary config options are set before starting up.
 
 ## Via website
 * Some kind of refresh token as described in http://stackoverflow.com/questions/26739167/jwt-json-web-token-automatic-prolongation-of-expiration
